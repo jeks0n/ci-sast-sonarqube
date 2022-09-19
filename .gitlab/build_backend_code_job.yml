@@ -1,0 +1,44 @@
+stages:
+  - build
+  - test
+  - notify
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - local: '.gitlab/.slack_notification_template.yml'
+
+build-backend-code-job:
+  stage: build
+  script:
+    - echo GE_BACKEND_JOB_ID=$CI_JOB_ID >> backend_environment.env
+    - cd backend
+    - mvn package
+  artifacts:
+    paths:
+      - backend/target/sausage-store-${BACKEND_VERSION}-SNAPSHOT.jar
+    reports:
+      dotenv: backend_environment.env
+
+sast:
+  stage: test
+  variables:
+    SAST_DEFAULT_ANALYZERS: semgrep,spotbugs
+    SAST_EXCLUDED_ANALYZERS: nodejs-scan,eslint-sast
+
+sonarqube-backend-sast:
+  stage: test
+  image: maven:3.8-openjdk-16
+  script:
+    - cd backend
+    - >
+      mvn verify sonar:sonar -Dsonar.qualitygate.wait=true
+      -Dsonar.projectKey=${GL_SONAR_PROJECT_KEY_BACKEND}
+      -Dsonar.host.url=${GL_SONAR_HOST_URL}
+      -Dsonar.login=${GL_SONAR_LOGIN_BACKEND}
+
+slack-notification-backend:
+  extends:
+    - .slack-notification_template
+  variables:
+    LINK_APP_NAME: "backend"
+    ARTIFACT_JOB_ID: $GE_BACKEND_JOB_ID

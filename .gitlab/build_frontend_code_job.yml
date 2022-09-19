@@ -1,0 +1,47 @@
+stages:
+  - build
+  - test
+  - notify
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - local: '.gitlab/.slack_notification_template.yml'
+
+build-frontend-code-job:
+  stage: build
+  script:
+    - echo GE_FRONTEND_JOB_ID=$CI_JOB_ID >> frontend_environment.env
+    - cd frontend
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/frontend
+    reports:
+      dotenv: frontend_environment.env
+
+sast:
+  stage: test
+  variables:
+    SAST_DEFAULT_ANALYZERS: eslint,semgrep,nodejs-scan
+    SAST_EXCLUDED_ANALYZERS: "spotbugs"
+
+sonarqube-frontend-sast:
+  stage: test
+  image: sonarsource/sonar-scanner-cli:latest
+  script:
+    - cd frontend
+    - >
+      sonar-scanner
+      -Dsonar.qualitygate.wait=true
+      -Dsonar.projectKey=${GL_SONAR_PROJECT_KEY_FRONTEND}
+      -Dsonar.sources=.
+      -Dsonar.host.url=${GL_SONAR_HOST_URL}
+      -Dsonar.login=${GL_SONAR_LOGIN_FRONTEND}
+
+slack-notification-frontend:
+  extends:
+    - .slack-notification_template
+  variables:
+    LINK_APP_NAME: "frontend"
+    ARTIFACT_JOB_ID: $GE_FRONTEND_JOB_ID

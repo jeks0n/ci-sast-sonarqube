@@ -1,0 +1,27 @@
+variables:
+  VERSION: 0.0.1
+
+stages:
+  - init
+
+build-frontend-code-job:
+  stage: init
+  trigger:
+    include:
+      - "/.gitlab/build_frontend_code_job.yml"
+    strategy: depend
+  only:
+    changes:
+      - frontend/**/*
+
+build-backend-code-job:
+  stage: init
+  variables:
+    BACKEND_VERSION: $VERSION
+  trigger:
+    include:
+      - "/.gitlab/build_backend_code_job.yml"
+    strategy: depend
+  only:
+    changes:
+      - backend/**/*

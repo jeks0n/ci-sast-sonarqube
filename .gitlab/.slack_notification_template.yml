@@ -1,0 +1,22 @@
+.slack-notification_template:
+  stage: notify
+  rules:
+      - if: '$CI_COMMIT_MESSAGE =~ /send notification/'
+  variables:
+    LINK_APP_NAME: "undefined"
+    ARTIFACT_JOB_ID: "undefined"
+  script:
+    - SH_URL=$CI_PROJECT_URL"/-/jobs/"$ARTIFACT_JOB_ID"/artifacts/download?file_type=archive&private_token="$GL_REPOSITORY_API_ACCESS_TOKEN
+    - SH_PRETTY_URL="<${SH_URL}|${LINK_APP_NAME}>"
+    - |-
+        SH_DATA=$(cat << JSON
+        {
+          "text":"Евгений Попов собрал  $SH_PRETTY_URL"
+        }
+        JSON
+        )
+    - >
+      curl -X POST
+      -H 'Content-type: application/json'
+      --data "${SH_DATA}"
+      https://hooks.slack.com/services/TPV9DP0N4/B040ZBELF63/"${GL_SLACK_TOKEN}"
